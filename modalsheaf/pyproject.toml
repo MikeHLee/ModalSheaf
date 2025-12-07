@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "modalsheaf"
+version = "0.1.0"
+description = "Practical sheaf-theoretic tools for multimodal ML data transformations"
+authors = [
+  { name="Michael Harrison Lee", email="leemichael289@gmail.com" },
+]
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+keywords = [
+    "multimodal", 
+    "sheaf-theory", 
+    "data-fusion", 
+    "machine-learning",
+    "embeddings",
+    "transformations",
+    "cohomology",
+    "consistency",
+    "vision-language",
+]
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "networkx>=2.6.0",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=1.9.0",
+    "transformers>=4.20.0",
+    "pillow>=8.0.0",
+]
+viz = [
+    "matplotlib>=3.4.0",
+    "plotly>=5.0.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "black>=22.0.0",
+    "mypy>=0.950",
+]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "myst-parser>=2.0",
+]
+all = [
+    "modalsheaf[ml,viz,dev,docs]",
+]
+
+[project.urls]
+Homepage = "https://github.com/MikeHLee/modalsheaf"
+Documentation = "https://modalsheaf.readthedocs.io/"
+Repository = "https://github.com/MikeHLee/modalsheaf.git"
+Issues = "https://github.com/MikeHLee/modalsheaf/issues"
+
+[tool.hatch.build]
+packages = ["src/modalsheaf"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/modalsheaf"]
+
+[tool.pytest.ini_options]
+testpaths = ["src/modalsheaf/tests"]
+python_files = ["test_*.py"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
