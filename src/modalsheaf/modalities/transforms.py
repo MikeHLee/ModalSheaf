@@ -29,9 +29,9 @@ def text_to_tokens(
     max_length: Optional[int] = None,
 ) -> np.ndarray:
     """
-    Extension map: text → tokens
+    Restriction map: text (Global) → tokens (Local)
     
-    Converts text string to token IDs.
+    Extracts local constituent parts (tokens) from the global object (text).
     Uses simple whitespace tokenization if no tokenizer provided.
     """
     if tokenizer is not None:
@@ -54,9 +54,9 @@ def tokens_to_text(
     tokenizer: Optional[Any] = None,
 ) -> str:
     """
-    Restriction map: tokens → text
+    Gluing/Extension map: tokens (Local) → text (Global)
     
-    Converts token IDs back to text string.
+    Assembles local parts (tokens) into a global structure (text).
     """
     tokens = np.asarray(tokens).flatten().tolist()
     
@@ -70,9 +70,9 @@ def tokens_to_text(
 
 def text_to_sentences(text: str) -> List[str]:
     """
-    Restriction map: text → sentences
+    Restriction map: text (Global) → sentences (Local)
     
-    Split text into sentences.
+    Restricts the global text to local open sets (sentences).
     """
     import re
     # Simple sentence splitting
@@ -82,37 +82,45 @@ def text_to_sentences(text: str) -> List[str]:
 
 def sentences_to_text(sentences: List[str]) -> str:
     """
-    Extension map: sentences → text
+    Gluing/Extension map: sentences (Local) → text (Global)
     
-    Join sentences back into text.
+    Assembles local parts (sentences) into a global structure.
     """
     return ' '.join(sentences)
 
 
 def text_to_words(text: str) -> List[str]:
     """
-    Restriction map: text → words
+    Restriction map: text (Global) → words (Local)
+    
+    Restricts the global text to local constituents (words).
     """
     return text.split()
 
 
 def words_to_text(words: List[str]) -> str:
     """
-    Extension map: words → text
+    Gluing/Extension map: words (Local) → text (Global)
+    
+    Assembles local parts (words) into a global structure.
     """
     return ' '.join(words)
 
 
 def text_to_chars(text: str) -> List[str]:
     """
-    Restriction map: text → characters
+    Restriction map: text (Global) → characters (Local)
+    
+    Restricts the global text to its finest local constituents.
     """
     return list(text)
 
 
 def chars_to_text(chars: List[str]) -> str:
     """
-    Extension map: characters → text
+    Gluing/Extension map: characters (Local) → text (Global)
+    
+    Assembles local parts (characters) into a global structure.
     """
     return ''.join(chars)
 
@@ -124,9 +132,9 @@ def image_to_patches(
     patch_size: int = 16,
 ) -> np.ndarray:
     """
-    Restriction map: image → patches
+    Restriction map: image (Global) → patches (Local)
     
-    Split image into non-overlapping patches.
+    Restricts the global image to local open sets (patches).
     Returns shape (num_patches, patch_size, patch_size, channels)
     """
     image = np.asarray(image)
@@ -158,9 +166,9 @@ def patches_to_image(
     image_shape: Tuple[int, int],
 ) -> np.ndarray:
     """
-    Extension map: patches → image
+    Gluing/Extension map: patches (Local) → image (Global)
     
-    Reassemble patches into image.
+    Assembles local parts (patches) into a global structure (image).
     """
     patches = np.asarray(patches)
     num_patches, patch_size, _, C = patches.shape

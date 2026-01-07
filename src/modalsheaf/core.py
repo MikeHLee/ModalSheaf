@@ -126,6 +126,7 @@ class Transformation:
     info_loss_estimate: float = 0.5  # 0.0 = no loss, 1.0 = total loss
     name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    matrix: Optional[np.ndarray] = None  # Linear restriction map matrix R for sheaf Laplacian
     
     def __post_init__(self):
         if self.name is None:

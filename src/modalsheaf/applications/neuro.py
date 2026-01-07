@@ -567,13 +567,79 @@ class BrainSheaf:
         """Get the signal vector across all regions at timepoint t."""
         return self.time_series[t, :]
     
+    # ==================== Signal Validation ====================
+    
+    def validate_signal_assumptions(self) -> bool:
+        """
+        Check if signals are properly normalized for dissonance detection.
+        
+        Since dissonance is calculated as Euclidean distance (s_j - s_i),
+        regions with vastly different variances will generate false dissonance
+        dominated by high-variance regions rather than true topological structure.
+        
+        This method checks for:
+        1. Variance disparity > 10x between regions (suggests z-scoring needed)
+        2. Mean disparity (signals should be centered)
+        
+        Returns:
+            True if signals appear properly normalized, False otherwise
+        
+        Raises:
+            UserWarning if high variance disparity is detected
+        """
+        import warnings
+        
+        variances = np.var(self.time_series, axis=0)
+        means = np.mean(self.time_series, axis=0)
+        
+        mean_var = np.mean(variances)
+        is_valid = True
+        
+        # Check variance disparity
+        if mean_var > 0:
+            high_var = np.any(variances > mean_var * 10)
+            low_var = np.any(variances < mean_var * 0.1)
+            
+            if high_var or low_var:
+                high_var_regions = [
+                    self.regions[i].label 
+                    for i in np.where(variances > mean_var * 10)[0]
+                ][:3]
+                low_var_regions = [
+                    self.regions[i].label 
+                    for i in np.where(variances < mean_var * 0.1)[0]
+                ][:3]
+                
+                warnings.warn(
+                    f"High variance disparity between brain regions detected. "
+                    f"High-variance regions: {high_var_regions}, "
+                    f"Low-variance regions: {low_var_regions}. "
+                    f"Dissonance metric may be dominated by high-variance regions. "
+                    f"Ensure data is z-scored (standardize=True in load_fmri_data).",
+                    UserWarning
+                )
+                is_valid = False
+        
+        # Check if means are approximately centered
+        mean_std = np.std(means)
+        if mean_std > 1.0:
+            warnings.warn(
+                f"Signal means vary significantly across regions (std={mean_std:.2f}). "
+                f"Consider centering each region's time series for fair comparison.",
+                UserWarning
+            )
+            is_valid = False
+        
+        return is_valid
+    
     # ==================== Coboundary / Dissonance Detection ====================
     
     def detect_dissonance(
         self,
         t: int,
         normalize: bool = True,
-        top_k: int = 10
+        top_k: int = 10,
+        validate_first: bool = True
     ) -> DissonanceResult:
         """
         Detect cognitive dissonance at a specific timepoint.
@@ -591,15 +657,26 @@ class BrainSheaf:
             t: Timepoint to analyze
             normalize: Whether to normalize by edge count (default: True)
             top_k: Number of top dissonant edges to report (default: 10)
+            validate_first: If True, validate signal assumptions on first call (default: True)
         
         Returns:
             DissonanceResult with metric and edge-wise analysis
+        
+        Note:
+            The coboundary calculation (s_j - s_i) assumes signals are z-scored.
+            If regions have vastly different variances, high-variance regions
+            will dominate the dissonance metric. Use validate_signal_assumptions()
+            to check this, or pass validate_first=True (default).
         """
         if self._graph is None:
             raise RuntimeError("Call build_complex() first")
         
         if t < 0 or t >= self.n_timepoints:
             raise ValueError(f"Timepoint {t} out of range [0, {self.n_timepoints})")
+        
+        # Validate signal assumptions on first call (t=0 or first unique call)
+        if validate_first and t == 0:
+            self.validate_signal_assumptions()
         
         # Get signal at timepoint t
         signal = self.get_section_at_time(t)
