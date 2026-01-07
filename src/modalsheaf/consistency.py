@@ -319,21 +319,29 @@ def compute_sheaf_laplacian(
     embeddings: Dict[str, np.ndarray]
 ) -> np.ndarray:
     """
-    Compute the sheaf Laplacian matrix.
+    Compute the sheaf Laplacian matrix L = δᵀδ.
     
     The sheaf Laplacian generalizes the graph Laplacian to account
     for the restriction maps (transformations) between modalities.
+    Unlike a standard graph Laplacian that uses -I for off-diagonal blocks,
+    this implementation uses the actual restriction map matrices -R_{ij}
+    when available, enabling detection of "twist" inconsistencies
+    (e.g., rotations, calibration errors).
     
     Mathematical Background:
         
         For a cellular sheaf on a graph G = (V, E):
         
         1. The coboundary operator δ: C⁰ → C¹ measures disagreement:
-           (δx)_e = F_{e←v}(x_v) - F_{e←u}(x_u)
+           (δx)_e = R_{e←v}(x_v) - R_{e←u}(x_u)
            
         2. The Laplacian is L = δᵀδ (or δδᵀ for the dual)
         
-        3. Key properties:
+        3. For edge (i,j) with restriction map R_{ij}:
+           - Off-diagonal block: L_{ij} = -R_{ij}
+           - Diagonal block: L_{ii} = Σ_k R_{ik}ᵀ R_{ik}
+        
+        4. Key properties:
            - L is positive semi-definite
            - ker(L) = H⁰ (global sections / consensus states)
            - xᵀLx = total squared disagreement
@@ -349,6 +357,10 @@ def compute_sheaf_laplacian(
         Example: 3 temperature sensors in a triangle
         - ker(L) = span{[1,1,1]} = "all same temperature"
         - Other eigenvectors = patterns of disagreement
+        
+        Example: Sensors with rotation calibration
+        - If sensor B reads rotated values relative to A, R_{AB} ≠ I
+        - The Laplacian captures this calibration mismatch
     
     Args:
         graph: The modality graph (defines the cellular sheaf structure)
@@ -361,9 +373,11 @@ def compute_sheaf_laplacian(
         >>> graph = ModalityGraph()
         >>> graph.add_modality("A")
         >>> graph.add_modality("B")
-        >>> graph.add_transformation("A", "B", forward=lambda x: x)
+        >>> # Rotation by 90 degrees
+        >>> R = np.array([[0, -1], [1, 0]])
+        >>> graph.add_transformation("A", "B", forward=lambda x: R @ x, matrix=R)
         >>> 
-        >>> embeddings = {"A": np.array([1.0]), "B": np.array([2.0])}
+        >>> embeddings = {"A": np.array([1.0, 0.0]), "B": np.array([0.0, 1.0])}
         >>> L = compute_sheaf_laplacian(graph, embeddings)
         >>> 
         >>> # Kernel dimension = H⁰ dimension
@@ -379,24 +393,61 @@ def compute_sheaf_laplacian(
     # Build block Laplacian
     L = np.zeros((n * d, n * d))
     
+    # First pass: compute off-diagonal blocks and accumulate diagonal contributions
     for i, mod_i in enumerate(modalities):
+        degree_block = np.zeros((d, d))
+        
         for j, mod_j in enumerate(modalities):
             if i == j:
-                # Diagonal: sum of incident edge contributions
-                degree = 0
-                for k, mod_k in enumerate(modalities):
-                    if graph.get_transformation(mod_i, mod_k) is not None:
-                        degree += 1
-                L[i*d:(i+1)*d, i*d:(i+1)*d] = degree * np.eye(d)
-            else:
-                # Off-diagonal: -R^T R for restriction map R
-                transform = graph.get_transformation(mod_i, mod_j)
-                if transform is not None:
-                    # For linear transforms, we'd use the matrix
-                    # For now, approximate with identity
-                    L[i*d:(i+1)*d, j*d:(j+1)*d] = -np.eye(d)
+                continue
+                
+            transform = graph.get_transformation(mod_i, mod_j)
+            if transform is not None:
+                # Get restriction map matrix R
+                R = _get_restriction_matrix(transform, d)
+                
+                # Off-diagonal block: -R
+                L[i*d:(i+1)*d, j*d:(j+1)*d] = -R
+                
+                # Accumulate diagonal contribution: R^T @ R
+                degree_block += R.T @ R
+        
+        # Diagonal block: sum of R^T @ R for all incident edges
+        L[i*d:(i+1)*d, i*d:(i+1)*d] = degree_block
     
     return L
+
+
+def _get_restriction_matrix(transform: Transformation, d: int) -> np.ndarray:
+    """
+    Extract the restriction map matrix from a Transformation.
+    
+    Priority:
+    1. Use transform.matrix if explicitly provided
+    2. Fallback to identity matrix (standard graph Laplacian behavior)
+    
+    Args:
+        transform: The Transformation object
+        d: Expected dimension of the matrix
+    
+    Returns:
+        d×d restriction map matrix
+    """
+    # Check if transform has an explicit matrix representation
+    if hasattr(transform, 'matrix') and transform.matrix is not None:
+        R = np.asarray(transform.matrix)
+        # Validate shape
+        if R.shape == (d, d):
+            return R
+        # If shape mismatch, warn and fallback
+        import warnings
+        warnings.warn(
+            f"Transformation '{transform.name}' has matrix of shape {R.shape}, "
+            f"expected ({d}, {d}). Falling back to identity matrix."
+        )
+    
+    # Fallback: identity matrix (reduces to standard graph Laplacian)
+    return np.eye(d)
 
 
 def diffuse_to_consensus(
