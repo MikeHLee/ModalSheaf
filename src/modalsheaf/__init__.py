@@ -129,6 +129,16 @@ from .cocycles import (
     repair_cocycle,
 )
 
+# Applications: Domain-specific sheaf implementations
+from .applications import (
+    BrainSheaf,
+    BrainRegion,
+    DissonanceResult,
+    PersistentCycleResult,
+    load_fmri_data,
+    load_connectivity_matrix,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -222,4 +232,11 @@ __all__ = [
     "CocycleRepairer",
     "check_cocycle",
     "repair_cocycle",
+    # Applications: Neuro-topological
+    "BrainSheaf",
+    "BrainRegion",
+    "DissonanceResult",
+    "PersistentCycleResult",
+    "load_fmri_data",
+    "load_connectivity_matrix",
 ]
